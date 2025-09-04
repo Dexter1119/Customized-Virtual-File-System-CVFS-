@@ -127,6 +127,3 @@ Terminating the Marvellous Virtual File System...
 📅 *September 2025*
 🎯 Built for learning operating system & file system fundamentals.
 
----
-
-Would you like me to make this README **GitHub-styled with badges, emojis, and code fences** (so it looks modern on GitHub), or keep it **academic report-styled** (more plain, with sections and numbering)?
