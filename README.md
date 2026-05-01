@@ -40,26 +40,26 @@ It provides an educational, simplified model of a UNIX-like file system with fil
 The project provides a custom **command-line shell** for user interaction:
 
 ```text
-Marvellous CVFS : > creat demo.txt Write
+CVFS : > creat demo.txt Write
 File Successfully Created with File Descriptor : 3
 
-Marvellous CVFS : > write 3
+CVFS : > write 3
 Enter the Data : Hello CVFS World!
 Successfully written 18 bytes into the file
 
-Marvellous CVFS : > read 3 10
+CVFS : > read 3 10
 10 Bytes Successfully Read from File
 Data : Hello CVFS
 
-Marvellous CVFS : > ls
+CVFS : > ls
 -------------------------------------------------------------
 File Name       Inode number    File Size    Actual File Size
 -------------------------------------------------------------
 demo.txt        3               1024         18
 -------------------------------------------------------------
 
-Marvellous CVFS : > exit
-Terminating the Marvellous Virtual File System...
+CVFS : > exit
+Terminating the Virtual File System...
 ```
 
 ---
