@@ -20,6 +20,7 @@
 #include<unistd.h>
 #include<string.h>
 #include<stdbool.h>
+#include<strings.h>
 
 using namespace std;
 
@@ -267,16 +268,21 @@ void DisplayHelp()
     printf("--------------------------------------------------------\n");
     printf("---------- Command Manual of CVFS ------------\n");
     printf("--------------------------------------------------------\n");
-    printf(" man     : Display the specific manual page of a command\n");
-    printf(" clear   : Clear the console of CVFS\n");
-    printf(" creat   : Create a new file in CVFS\n");
-    printf(" exit    : Terminate the shell of CVFS\n");
-    printf(" unlink  : Delete an existing file\n");
-    printf(" stat    : Display statistical information about a file\n");
-    printf(" ls      : List all file names from the directory\n");
-    printf(" write   : Write data into a file\n");
-    printf(" read    : Read data from a file\n");
-    printf(" help    : Display this command manual\n");
+    printf(" man      : Display the specific manual page of a command\n");
+    printf(" clear    : Clear the console of CVFS\n");
+    printf(" creat    : Create a new file in CVFS\n");
+    printf(" open     : Open an existing file\n");
+    printf(" close    : Close an opened file by descriptor\n");
+    printf(" closeall : Close all opened files\n");
+    printf(" read     : Read data from a file\n");
+    printf(" write    : Write data into a file\n");
+    printf(" ls       : List all files in the virtual file system\n");
+    printf(" stat     : Display statistical information about a file\n");
+    printf(" fstat    : Display file info using file descriptor\n");
+    printf(" truncate : Remove all content from a file\n");
+    printf(" rm       : Delete an existing file\n");
+    printf(" exit     : Terminate the shell of CVFS\n");
+    printf(" help     : Display this command manual\n");
     printf("--------------------------------------------------------\n");
 
 }
@@ -367,7 +373,7 @@ int CreateFile(
 
 
     //Search first  NULL from UFDT
-    for(iCnt = 0 ; iCnt < MAXINODE ; iCnt++)
+    for(iCnt = 0 ; iCnt < MAX_OPENED_FILES ; iCnt++)
     {
         if(ureaobj.UFDT[iCnt] == NULL)
         {
@@ -375,7 +381,7 @@ int CreateFile(
         }
     }
 
-    if(iCnt == MAXINODE * 2)
+    if(iCnt == MAX_OPENED_FILES)
     {
         printf("Unable to Create file As maxed opened file limit reached\n");
         return ERR_NO_EMPTY_INODE_FOUND;
@@ -422,7 +428,7 @@ int CreateFile(
 ////////////////////////////////////////////////////////////////////
 void ManPage(char *name)   // Name Of Command
 {
-    if(stricmp(name,"creat") == 0)
+    if(strcasecmp(name,"creat") == 0)
     {
         printf("Description : This Command is used to create a new regular file in the\n");
         printf("              Virtual File System. If the file already exists,\n");
@@ -435,21 +441,21 @@ void ManPage(char *name)   // Name Of Command
         printf("                  2 : Write Only\n");
         printf("                  3 : Read + Write\n");
     }
-    else if(stricmp(name,"exit") == 0)
+    else if(strcasecmp(name,"exit") == 0)
     {
         printf("Description : Terminates the Virtual File System and frees\n");
         printf("              all allocated resources before shutting down.\n");
         printf("Usage       : exit \n");   
     }
-    else if(strcmp(name,"unlink") == 0)
+    else if(strcasecmp(name,"unlink") == 0 || strcasecmp(name,"rm") == 0)
     {
         printf("Description : Deletes a regular file from the Virtual File System.\n");
         printf("              The file and its data are permanently removed.\n");
-        printf("Usage       : unlink File_Name  \n");
+        printf("Usage       : rm File_Name  \n");
         printf("Arguments   :\n");
         printf("   File_Name : The name of the file that you want to delete.\n");
     }
-    else if(strcmp(name,"stat") == 0)
+    else if(strcasecmp(name,"stat") == 0)
     {
         printf("Description : Displays detailed information about a file such as its\n");
         printf("              name, size, permissions, type, and inode details.\n");
@@ -457,22 +463,29 @@ void ManPage(char *name)   // Name Of Command
         printf("Arguments   :\n");
         printf("   File_Name : The name of the file that you want information about.\n");
     }
-    else if(strcmp(name,"ls") == 0)
+    else if(strcasecmp(name,"fstat") == 0)
     {
-        printf("Description : Lists all the filenames currently stored in the Virtual\n");
-        printf("              File System, along with their file descriptors and type.\n");
+        printf("Description : Displays file information using its File Descriptor.\n");
+        printf("Usage       : fstat FD \n");
+        printf("Arguments   :\n");
+        printf("   FD : File Descriptor of the file.\n");
+    }
+    else if(strcasecmp(name,"ls") == 0)
+    {
+        printf("Description : Lists all the files currently stored in the Virtual\n");
+        printf("              File System, along with inode number and sizes.\n");
         printf("Usage       : ls \n");
     }
-    else if(strcmp(name, "write") == 0)
+    else if(strcasecmp(name, "write") == 0)
     {
         printf("Description : Writes data into an opened file in the Virtual File System.\n");
-        printf("              The write operation overwrites the existing data based on\n");
-        printf("              the file's current read/write offset.\n");
+        printf("              The write operation appends to the existing data based on\n");
+        printf("              the file's current write offset.\n");
         printf("Usage       : write FD  \n");
         printf("Arguments   :\n");
         printf("   FD : File Descriptor of the file (obtained while opening the file).\n");
     }
-    else if(strcmp(name, "read") == 0)
+    else if(strcasecmp(name, "read") == 0)
     {
         printf("Description : Reads data from an opened file in the Virtual File System.\n");
         printf("              The data is read sequentially based on the file's read\n");
@@ -482,7 +495,7 @@ void ManPage(char *name)   // Name Of Command
         printf("   FD   : File Descriptor of the file.\n");
         printf("   Size : Number of bytes to read from the file.\n");
     }
-    else if(strcmp(name, "open") == 0)
+    else if(strcasecmp(name, "open") == 0)
     {
         printf("Description : Opens an existing file in the Virtual File System with\n");
         printf("              specified permissions and returns a File Descriptor.\n");
@@ -494,21 +507,19 @@ void ManPage(char *name)   // Name Of Command
         printf("               2 : Write Only\n");
         printf("               3 : Read + Write\n");
     }
-    else if(strcmp(name, "close") == 0)
+    else if(strcasecmp(name, "close") == 0)
     {
         printf("Description : Closes an opened file and releases its file descriptor.\n");
         printf("Usage       : close FD \n");
         printf("Arguments   :\n");
         printf("   FD : File Descriptor of the file to be closed.\n");
     }
-    else if(strcmp(name, "fstat") == 0)
+    else if(strcasecmp(name, "closeall") == 0)
     {
-        printf("Description : Displays file information using its File Descriptor.\n");
-        printf("Usage       : fstat FD \n");
-        printf("Arguments   :\n");
-        printf("   FD : File Descriptor of the file.\n");
+        printf("Description : Closes all currently opened files.\n");
+        printf("Usage       : closeall \n");
     }
-    else if(strcmp(name, "truncate") == 0)
+    else if(strcasecmp(name, "truncate") == 0)
     {
         printf("Description : Removes all the data from the specified file but keeps\n");
         printf("              the file entry and its metadata intact.\n");
@@ -516,7 +527,7 @@ void ManPage(char *name)   // Name Of Command
         printf("Arguments   :\n");
         printf("   File_Name : The name of the file whose content you want to erase.\n");
     }
-    else if(strcmp(name, "help") == 0)
+    else if(strcasecmp(name, "help") == 0)
     {
         printf("Description : Displays a list of all supported commands in the\n");
         printf("              Virtual File System along with a short description.\n");
@@ -555,40 +566,44 @@ int UnlinkFile(
         return ERR_FILE_NOT_EXISTS;
     }
 
+    // First close any open UFDT entry for this file
     int iCnt = 0;
-    for(iCnt = 0 ; iCnt < MAXINODE ; iCnt++)
+    for(iCnt = 0 ; iCnt < MAX_OPENED_FILES ; iCnt++)
     {
         if(ureaobj.UFDT[iCnt] != NULL)
         {
-            if(strcmp(ureaobj.UFDT[iCnt] -> ptrinode -> FileName,name) == 0)
+            if(strcmp(ureaobj.UFDT[iCnt] -> ptrinode -> FileName, name) == 0)
             {
-                // Deallocate the memory og the Buffer 
-                free(ureaobj.UFDT[iCnt] -> ptrinode -> Buffer);
-
-                //reset inode
-                ureaobj.UFDT[iCnt] ->ptrinode->FileSize = 0;
-                ureaobj.UFDT[iCnt] ->ptrinode->ActualFileSize = 0;
-                ureaobj.UFDT[iCnt] ->ptrinode->FileType = 0;
-                ureaobj.UFDT[iCnt] ->ptrinode->ReferenceCount = 0;
-                ureaobj.UFDT[iCnt] ->ptrinode->LinkCount = 0;
-                ureaobj.UFDT[iCnt] ->ptrinode->Permission = 0;
-
-                
-                // deallocate the memory of file table
                 free(ureaobj.UFDT[iCnt]);
-
-                // Set NULL to the UFDT member
                 ureaobj.UFDT[iCnt] = NULL;
-
-                // Increment the value of free inodes
-                superobj.FreeInodes++;
-
                 break;
+            }
+        }
+    }
 
+    // Now reset the inode directly from the DILB
+    PINODE temp = head;
+    while(temp != NULL)
+    {
+        if(strcmp(temp->FileName, name) == 0 && temp->FileType == REGULARFILE)
+        {
+            if(temp->Buffer != NULL)
+            {
+                free(temp->Buffer);
+                temp->Buffer = NULL;
+            }
+            temp->FileName[0] = '\0';
+            temp->FileSize = 0;
+            temp->ActualFileSize = 0;
+            temp->FileType = 0;
+            temp->ReferenceCount = 0;
+            temp->LinkCount = 0;
+            temp->Permission = 0;
 
-            }// End Of if(strcmp(ureaobj.UFDT[iCnt] -> ptrinode -> FileName,name) == 0)
-
-        }// End Of For
+            superobj.FreeInodes++;
+            break;
+        }
+        temp = temp->next;
     }
 
     return EXECUTE_SUCCESS;
@@ -607,14 +622,41 @@ int UnlinkFile(
 void ls_file()
 {
     PINODE temp = head;
+    int fileCount = 0;
+
     while(temp != NULL)
     {
-        if((temp ->FileType != 0))
+        if(temp->FileType != 0)
         {
-            printf("%s\n",temp ->FileName);
+            fileCount++;
         }
         temp = temp->next;
     }
+
+    if(fileCount == 0)
+    {
+        printf("No files present in the Virtual File System.\n");
+        return;
+    }
+
+    printf("-------------------------------------------------------------\n");
+    printf("%-20s %-15s %-12s %-15s\n", "File Name", "Inode Number", "File Size", "Actual File Size");
+    printf("-------------------------------------------------------------\n");
+
+    temp = head;
+    while(temp != NULL)
+    {
+        if(temp->FileType != 0)
+        {
+            printf("%-20s %-15d %-12d %-15d\n",
+                   temp->FileName,
+                   temp->InodeNumber,
+                   temp->FileSize,
+                   temp->ActualFileSize);
+        }
+        temp = temp->next;
+    }
+    printf("-------------------------------------------------------------\n");
 
 }
 
@@ -645,9 +687,6 @@ int stat_file(
     {
         return ERR_FILE_NOT_EXISTS;
     }
-
-    int iCnt = 0;
-    
 
     PINODE temp = head;
     while(temp != NULL)
@@ -711,13 +750,8 @@ int write_file(
                 int Size            // Size of the data That Has to write into file
             )
 {   
-    printf("File Descriptor is : %d\n",fd);
-    printf("the data you wanna write is : %s\n",data);
-    printf("The Size of data has to be written: %d\n",Size);
-
-    unsigned long int offset = 0;
     //Invalid Value of FD
-    if(fd < 0 || fd > MAX_OPENED_FILES)
+    if(fd < 0 || fd >= MAX_OPENED_FILES)
     {
         return ERR_INVALID_PARAMETER;
     }
@@ -727,30 +761,25 @@ int write_file(
     {
         return ERR_FILE_NOT_EXISTS;
     }
-    // If There is no Permmision to Write the data
-    if(ureaobj.UFDT[fd] -> ptrinode -> Permission < WRITE)
+    // If There is no Permission to Write the data
+    if(!(ureaobj.UFDT[fd] -> ptrinode -> Permission & WRITE))
     {
         return ERR_PERMISSION_DENIED;
     }
     //Unable to write As there is no Sufficient Space
-    if((MAXFILESIZE- ureaobj.UFDT[fd] ->WriteOffset) < Size)
+    if((MAXFILESIZE - ureaobj.UFDT[fd] ->WriteOffset) < Size)
     {
         return ERR_INSUFFICIENT_SPACE;
     }
 
-    /////////////
-    // Calculate The Offset
-    // offset = ureaobj.UFDT[fd] -> ptrinode -> Buffer + ureaobj.UFDT[fd] -> WriteOffset;
-    // Write Actual Data
-
-    strncpy(ureaobj.UFDT[fd] -> ptrinode -> Buffer + ureaobj.UFDT[fd] -> WriteOffset,data,Size);
+    strncpy(ureaobj.UFDT[fd] -> ptrinode -> Buffer + ureaobj.UFDT[fd] -> WriteOffset, data, Size);
     
     //Update the WriteOffset
     ureaobj.UFDT[fd] -> WriteOffset = ureaobj.UFDT[fd] -> WriteOffset  + Size;
 
-    // Increment The Actual Size
+    // Update The Actual Size
+    ureaobj.UFDT[fd] -> ptrinode -> ActualFileSize = ureaobj.UFDT[fd] -> WriteOffset;
 
-    ureaobj.UFDT[fd] -> ptrinode -> ActualFileSize = ureaobj.UFDT[fd] -> ptrinode -> ActualFileSize + Size;
     return Size;
 }
 
@@ -778,7 +807,7 @@ int read_file(
    
     
     //Invalid Value of FD
-    if(fd < 0 || fd > MAX_OPENED_FILES)
+    if(fd < 0 || fd >= MAX_OPENED_FILES)
     {
         return ERR_INVALID_PARAMETER;
     }
@@ -792,25 +821,288 @@ int read_file(
     {
         return ERR_FILE_NOT_EXISTS;
     }
-    // If There is no Permmision to Write the data
-    if(ureaobj.UFDT[fd] -> ptrinode -> Permission == WRITE )
+    // If There is no Permission to Read the data
+    if(!(ureaobj.UFDT[fd] -> ptrinode -> Permission & READ))
     {
         return ERR_PERMISSION_DENIED;
     }
-    //Unable to read as There is no Sufficient data
-    if((MAXFILESIZE- ureaobj.UFDT[fd] ->ReadOffset) < Size)
+    // Check that there is enough data available to read
+    int availableData = ureaobj.UFDT[fd]->ptrinode->ActualFileSize - ureaobj.UFDT[fd]->ReadOffset;
+    if(availableData < Size)
     {
         return ERR_INSUFFICIENT_DATA;
     }
 
-    // Copy The Data Into Buffer
-    strncpy(data, (ureaobj.UFDT[fd]->ptrinode->Buffer + ureaobj.UFDT[fd]->ReadOffset) ,Size);
+    // Copy The Data Into Buffer; caller must allocate at least Size+1 bytes
+    strncpy(data, (ureaobj.UFDT[fd]->ptrinode->Buffer + ureaobj.UFDT[fd]->ReadOffset), Size);
+    data[Size] = '\0';
 
     // Update the ReadOffset
     ureaobj.UFDT[fd] -> ReadOffset = ureaobj.UFDT[fd] -> ReadOffset + Size;
     
 
     return Size;
+}
+
+////////////////////////////////////////////////////////////////////
+//
+// Function Name  : OpenFile
+// Description    : Used to open an existing file with given mode
+// Input          : File Name, Mode (Read/Write/Read+Write)
+// Output         : Returns File Descriptor or error code
+// Author         : Pradhumnya Changdev Kalsait
+// Date           : 15/08/25
+//
+////////////////////////////////////////////////////////////////////
+
+// CVFS > open demo.txt 3
+int OpenFile(
+                char *name,     // Name of the file to open
+                int mode        // Mode: READ(1), WRITE(2), READ+WRITE(3)
+            )
+{
+    // Filters
+    if(name == NULL)
+    {
+        return ERR_INVALID_PARAMETER;
+    }
+    if(mode < 1 || mode > 3)
+    {
+        return ERR_INVALID_PARAMETER;
+    }
+    // File must exist
+    if(IsFileExists(name) == false)
+    {
+        return ERR_FILE_NOT_EXISTS;
+    }
+
+    // Find the inode for this file
+    PINODE temp = head;
+    while(temp != NULL)
+    {
+        if(strcmp(temp->FileName, name) == 0 && temp->FileType == REGULARFILE)
+        {
+            break;
+        }
+        temp = temp->next;
+    }
+
+    if(temp == NULL)
+    {
+        return ERR_FILE_NOT_EXISTS;
+    }
+
+    // Check permission compatibility
+    if((mode & READ) && !(temp->Permission & READ))
+    {
+        return ERR_PERMISSION_DENIED;
+    }
+    if((mode & WRITE) && !(temp->Permission & WRITE))
+    {
+        return ERR_PERMISSION_DENIED;
+    }
+
+    // Find a free UFDT slot
+    int iCnt = 0;
+    for(iCnt = 0; iCnt < MAX_OPENED_FILES; iCnt++)
+    {
+        if(ureaobj.UFDT[iCnt] == NULL)
+        {
+            break;
+        }
+    }
+
+    if(iCnt == MAX_OPENED_FILES)
+    {
+        return ERR_NO_EMPTY_INODE_FOUND;
+    }
+
+    ureaobj.UFDT[iCnt] = (PFILETABLE)malloc(sizeof(FILETABLE));
+    ureaobj.UFDT[iCnt]->Count = 1;
+    ureaobj.UFDT[iCnt]->ReadOffset = 0;
+    ureaobj.UFDT[iCnt]->WriteOffset = temp->ActualFileSize; // append writes at end
+    ureaobj.UFDT[iCnt]->MODE = mode;
+    ureaobj.UFDT[iCnt]->ptrinode = temp;
+
+    temp->ReferenceCount++;
+
+    return iCnt;
+}
+
+////////////////////////////////////////////////////////////////////
+//
+// Function Name  : CloseFile
+// Description    : Used to close an opened file by its file descriptor
+// Input          : File Descriptor
+// Output         : Returns EXECUTE_SUCCESS or error code
+// Author         : Pradhumnya Changdev Kalsait
+// Date           : 15/08/25
+//
+////////////////////////////////////////////////////////////////////
+
+// CVFS > close 3
+int CloseFile(int fd)
+{
+    if(fd < 0 || fd >= MAX_OPENED_FILES)
+    {
+        return ERR_INVALID_PARAMETER;
+    }
+
+    if(ureaobj.UFDT[fd] == NULL)
+    {
+        return ERR_FILE_NOT_EXISTS;
+    }
+
+    ureaobj.UFDT[fd]->ptrinode->ReferenceCount--;
+
+    free(ureaobj.UFDT[fd]);
+    ureaobj.UFDT[fd] = NULL;
+
+    return EXECUTE_SUCCESS;
+}
+
+////////////////////////////////////////////////////////////////////
+//
+// Function Name  : CloseAllFiles
+// Description    : Used to close all currently opened files
+// Input          : Nothing
+// Output         : Nothing
+// Author         : Pradhumnya Changdev Kalsait
+// Date           : 15/08/25
+//
+////////////////////////////////////////////////////////////////////
+void CloseAllFiles()
+{
+    int iCnt = 0;
+    for(iCnt = 0; iCnt < MAX_OPENED_FILES; iCnt++)
+    {
+        if(ureaobj.UFDT[iCnt] != NULL)
+        {
+            ureaobj.UFDT[iCnt]->ptrinode->ReferenceCount--;
+            free(ureaobj.UFDT[iCnt]);
+            ureaobj.UFDT[iCnt] = NULL;
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////
+//
+// Function Name  : fstat_file
+// Description    : Used to display file information using file descriptor
+// Input          : File Descriptor
+// Output         : Returns EXECUTE_SUCCESS or error code
+// Author         : Pradhumnya Changdev Kalsait
+// Date           : 15/08/25
+//
+////////////////////////////////////////////////////////////////////
+
+// CVFS > fstat 3
+int fstat_file(int fd)
+{
+    if(fd < 0 || fd >= MAX_OPENED_FILES)
+    {
+        return ERR_INVALID_PARAMETER;
+    }
+
+    if(ureaobj.UFDT[fd] == NULL)
+    {
+        return ERR_FILE_NOT_EXISTS;
+    }
+
+    PINODE temp = ureaobj.UFDT[fd]->ptrinode;
+
+    printf("----------Statistical Information of File-------------\n");
+    printf("File Descriptor    : %d\n", fd);
+    printf("File Name          : %s\n", temp->FileName);
+    printf("File Size On Disk  : %d\n", temp->FileSize);
+    printf("Actual File Size   : %d\n", temp->ActualFileSize);
+    printf("Link Count         : %d\n", temp->LinkCount);
+    printf("Reference Count    : %d\n", temp->ReferenceCount);
+    printf("File Permission    : ");
+    if(temp->Permission == READ)
+    {
+        printf("Read\n");
+    }
+    else if(temp->Permission == WRITE)
+    {
+        printf("Write\n");
+    }
+    else if(temp->Permission == (READ | WRITE))
+    {
+        printf("Read + Write\n");
+    }
+    printf("File Type          : ");
+    if(temp->FileType == REGULARFILE)
+    {
+        printf("Regular File\n");
+    }
+    else if(temp->FileType == SPECIALFILE)
+    {
+        printf("Special File\n");
+    }
+    printf("------------------------------------------------------\n");
+
+    return EXECUTE_SUCCESS;
+}
+
+////////////////////////////////////////////////////////////////////
+//
+// Function Name  : truncate_file
+// Description    : Used to remove all content from a file while keeping metadata
+// Input          : File Name
+// Output         : Returns EXECUTE_SUCCESS or error code
+// Author         : Pradhumnya Changdev Kalsait
+// Date           : 15/08/25
+//
+////////////////////////////////////////////////////////////////////
+
+// CVFS > truncate demo.txt
+int truncate_file(char *name)
+{
+    if(name == NULL)
+    {
+        return ERR_INVALID_PARAMETER;
+    }
+
+    if(IsFileExists(name) == false)
+    {
+        return ERR_FILE_NOT_EXISTS;
+    }
+
+    // Try to find an open UFDT entry first
+    int iCnt = 0;
+    for(iCnt = 0; iCnt < MAX_OPENED_FILES; iCnt++)
+    {
+        if(ureaobj.UFDT[iCnt] != NULL)
+        {
+            if(strcmp(ureaobj.UFDT[iCnt]->ptrinode->FileName, name) == 0)
+            {
+                memset(ureaobj.UFDT[iCnt]->ptrinode->Buffer, 0, MAXFILESIZE);
+                ureaobj.UFDT[iCnt]->ptrinode->ActualFileSize = 0;
+                ureaobj.UFDT[iCnt]->ReadOffset = 0;
+                ureaobj.UFDT[iCnt]->WriteOffset = 0;
+                return EXECUTE_SUCCESS;
+            }
+        }
+    }
+
+    // File exists but is not open — find it in the DILB
+    PINODE temp = head;
+    while(temp != NULL)
+    {
+        if(strcmp(temp->FileName, name) == 0 && temp->FileType == REGULARFILE)
+        {
+            if(temp->Buffer != NULL)
+            {
+                memset(temp->Buffer, 0, MAXFILESIZE);
+            }
+            temp->ActualFileSize = 0;
+            return EXECUTE_SUCCESS;
+        }
+        temp = temp->next;
+    }
+
+    return ERR_FILE_NOT_EXISTS;
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -846,6 +1138,8 @@ int main()
         printf("\n CVFS > ");
         fgets(str, sizeof(str) , stdin);
 
+        // Clear command array before each parse
+        memset(Command, 0, sizeof(Command));
         iCount = sscanf(str ,"%s %s %s %s",Command[0],Command[1],Command[2],Command[3]);
        
 
@@ -853,8 +1147,7 @@ int main()
         if(iCount == 1)
         {
             // CVFS > exit
-
-            if(stricmp(Command[0],"exit") == 0)
+            if(strcasecmp(Command[0],"exit") == 0)
             {
                 printf("Thank You for Using CVFS \n");
                 printf("Deallocating the Resources ...\n");
@@ -862,22 +1155,30 @@ int main()
             }
 
             // CVFS > help
-            else if(stricmp(Command[0],"help") == 0)
+            else if(strcasecmp(Command[0],"help") == 0)
             {
                 DisplayHelp();
             }
 
             // CVFS > clear
-            else if(strcmp(Command[0],"clear") == 0)
+            else if(strcasecmp(Command[0],"clear") == 0)
             {
-                system("cls");
+                system("clear");
             }
 
             // CVFS > ls
-            else if(strcmp(Command[0],"ls") == 0)
+            else if(strcasecmp(Command[0],"ls") == 0)
             {
                 ls_file();
             }
+
+            // CVFS > closeall
+            else if(strcasecmp(Command[0],"closeall") == 0)
+            {
+                CloseAllFiles();
+                printf("All files closed successfully.\n");
+            }
+
             else
             {
                 printf("Command Not Found..\n");
@@ -888,160 +1189,241 @@ int main()
         else if(iCount == 2)
         {
             // CVFS > man creat
-            if(stricmp(Command[0],"man") == 0)
+            if(strcasecmp(Command[0],"man") == 0)
             {
                 ManPage(Command[1]);
             }
             
-            //CVFS > unlink demo.txt
-            if(strcmp(Command[0],"unlink") == 0)
+            // CVFS > rm demo.txt
+            else if(strcasecmp(Command[0],"rm") == 0 || strcasecmp(Command[0],"unlink") == 0)
             {
                 iRet = UnlinkFile(Command[1]);
                 if(iRet == EXECUTE_SUCCESS)
                 {
-                    printf("File %s deleted Successfullly",Command[1]);
+                    printf("File '%s' deleted successfully.\n", Command[1]);
                 }
                 else if(iRet == ERR_FILE_NOT_EXISTS)
                 {
-                    printf("Error : Unable to do unlink activity as file is not present");
+                    printf("Error : Unable to delete file. File '%s' does not exist.\n", Command[1]);
                 }
                 else if(iRet == ERR_INVALID_PARAMETER)
                 {
-                    printf("Error : Inavalid Parameters for the functions\n");
-                    printf("Please Check man page for more details\n");
+                    printf("Error : Invalid parameters.\n");
+                    printf("Please check man page for more details.\n");
                 }
             }
 
-            //CVFS > stat demo.txt
-            else if(strcmp(Command[0], "stat") == 0)
+            // CVFS > stat demo.txt
+            else if(strcasecmp(Command[0], "stat") == 0)
             {
                 iRet = stat_file(Command[1]);
                 
                 if(iRet == ERR_FILE_NOT_EXISTS)
                 {
-                    printf("Error : Unable to do display statistics as file is not present");
+                    printf("Error : Unable to display statistics. File '%s' does not exist.\n", Command[1]);
                 }
                 else if(iRet == ERR_INVALID_PARAMETER)
                 {
-                    printf("Error : Inavalid Parameters for the functions\n");
-                    printf("Please Check man page for more details\n");
+                    printf("Error : Invalid parameters.\n");
+                    printf("Please check man page for more details.\n");
                 } 
             }
-             //CVFS > write 3
-            else if(strcmp(Command[0], "write") == 0)
-            {
 
-                printf("Please enter the data that you wanna write into the file:");
-                scanf("%[^\n]s",Input_Buffer);
-                //fgets(Input_Buffer,MAXFILESIZE,stdin);
-                fflush(stdin);
-                iRet = write_file(atoi(Command[1]),Input_Buffer,strlen(Input_Buffer));
+            // CVFS > write 3
+            else if(strcasecmp(Command[0], "write") == 0)
+            {
+                printf("Please enter the data that you want to write into the file: ");
+                fflush(stdout);
+                memset(Input_Buffer, 0, sizeof(Input_Buffer));
+                scanf("%[^\n]", Input_Buffer);
+                // Consume the trailing newline left in the input stream
+                int c;
+                while((c = getchar()) != '\n' && c != EOF) {}
+
+                iRet = write_file(atoi(Command[1]), Input_Buffer, strlen(Input_Buffer));
                 if(iRet == ERR_FILE_NOT_EXISTS)
                 {
-                    printf("Error : Unable to Write into the file as file is not present");
+                    printf("Error : Unable to write. File not found for the given descriptor.\n");
                 }
                 else if(iRet == ERR_INVALID_PARAMETER)
                 {
-                    printf("Error : Inavalid Parameters for the functions\n");
-                    printf("Please Check man page for more details\n");
+                    printf("Error : Invalid parameters.\n");
+                    printf("Please check man page for more details.\n");
                 } 
                 else if(iRet == ERR_PERMISSION_DENIED)
                 {
-                    printf("Error: It Seems You Dont Have Permission to write");
+                    printf("Error : Permission denied. You don't have write permission.\n");
                 }
                 else if(iRet == ERR_INSUFFICIENT_SPACE)
                 {
-                    printf("Error : Insufficient Space For data Block for the File");
+                    printf("Error : Insufficient space in the file.\n");
                 }
-
                 else
                 {
-                    printf("%d Bytes of Data written into File",iRet);
-                    printf("The Data from The File :%s",ureaobj.UFDT[0] ->ptrinode ->Buffer);
+                    printf("%d bytes of data written into file successfully.\n", iRet);
                 }
-                
-                
-                
             }
+
+            // CVFS > close 3
+            else if(strcasecmp(Command[0], "close") == 0)
+            {
+                iRet = CloseFile(atoi(Command[1]));
+                if(iRet == EXECUTE_SUCCESS)
+                {
+                    printf("File with descriptor %s closed successfully.\n", Command[1]);
+                }
+                else if(iRet == ERR_FILE_NOT_EXISTS)
+                {
+                    printf("Error : No file is open with descriptor %s.\n", Command[1]);
+                }
+                else if(iRet == ERR_INVALID_PARAMETER)
+                {
+                    printf("Error : Invalid file descriptor.\n");
+                }
+            }
+
+            // CVFS > fstat 3
+            else if(strcasecmp(Command[0], "fstat") == 0)
+            {
+                iRet = fstat_file(atoi(Command[1]));
+                if(iRet == ERR_FILE_NOT_EXISTS)
+                {
+                    printf("Error : No file is open with descriptor %s.\n", Command[1]);
+                }
+                else if(iRet == ERR_INVALID_PARAMETER)
+                {
+                    printf("Error : Invalid file descriptor.\n");
+                }
+            }
+
+            // CVFS > truncate demo.txt
+            else if(strcasecmp(Command[0], "truncate") == 0)
+            {
+                iRet = truncate_file(Command[1]);
+                if(iRet == EXECUTE_SUCCESS)
+                {
+                    printf("File '%s' truncated successfully.\n", Command[1]);
+                }
+                else if(iRet == ERR_FILE_NOT_EXISTS)
+                {
+                    printf("Error : File '%s' not found.\n", Command[1]);
+                }
+                else if(iRet == ERR_INVALID_PARAMETER)
+                {
+                    printf("Error : Invalid parameters.\n");
+                }
+            }
+
             else
             {
                 printf("Command Not Found..\n");
                 printf("Please refer Help option or Use man Command\n");
-
             }
 
             
         }   //End Of if(iCount == 2)
         else if(iCount == 3)
         {
-            // CVFS > creat ganesh.txt 3
-            if(strcmp(Command[0],"creat") == 0)
+            // CVFS > creat demo.txt 3
+            if(strcasecmp(Command[0],"creat") == 0)
             {
                 iRet = CreateFile(Command[1], atoi(Command[2]));
                 
                 if(iRet == ERR_INVALID_PARAMETER)
                 {
-                    printf("Error : Inavalid Parameters for the functions\n");
-                    printf("Please Check man page for more details\n");
+                    printf("Error : Invalid parameters.\n");
+                    printf("Please check man page for more details.\n");
                 }
                 else if(iRet == ERR_NO_INODES)
                 {
-                    printf("Error : Unable to create a file as there is no Inodes\n");
+                    printf("Error : Unable to create file. No free inodes available.\n");
                 }
                 else if(iRet == ERR_FILE_ALREADY_EXISTS)
                 {
-                    printf("Error : Unable to create file File is already exists\n");
+                    printf("Error : File '%s' already exists.\n", Command[1]);
                 }
                 else if(iRet == ERR_NO_EMPTY_INODE_FOUND)
                 {
-                    printf("Error : It Seems All Files Are Opened \n");
+                    printf("Error : Maximum number of open files reached.\n");
                 }
                 else
                 {
-                    printf("File Is Successfully Created With Fd: %d\n",iRet);
+                    printf("File '%s' created successfully. File Descriptor: %d\n", Command[1], iRet);
+                }
+            }
+
+            // CVFS > open demo.txt 3
+            else if(strcasecmp(Command[0],"open") == 0)
+            {
+                iRet = OpenFile(Command[1], atoi(Command[2]));
+
+                if(iRet == ERR_INVALID_PARAMETER)
+                {
+                    printf("Error : Invalid parameters.\n");
+                    printf("Please check man page for more details.\n");
+                }
+                else if(iRet == ERR_FILE_NOT_EXISTS)
+                {
+                    printf("Error : File '%s' does not exist.\n", Command[1]);
+                }
+                else if(iRet == ERR_PERMISSION_DENIED)
+                {
+                    printf("Error : Permission denied. Requested mode exceeds file permissions.\n");
+                }
+                else if(iRet == ERR_NO_EMPTY_INODE_FOUND)
+                {
+                    printf("Error : Maximum number of open files reached.\n");
+                }
+                else
+                {
+                    printf("File '%s' opened successfully. File Descriptor: %d\n", Command[1], iRet);
                 }
             }
 
             // CVFS > read 3 10
-            if(strcmp(Command[0],"read") == 0)
+            else if(strcasecmp(Command[0],"read") == 0)
             {
-
-                EmptyBuffer = (char*)malloc(sizeof(atoi(Command[2])));
-
-
-                iRet =read_file(atoi(Command[1]),EmptyBuffer, atoi(Command[2]));
-                if(iRet == ERR_FILE_NOT_EXISTS)
+                int readSize = atoi(Command[2]);
+                EmptyBuffer = (char*)malloc(readSize + 1);
+                if(EmptyBuffer == NULL)
                 {
-                    printf("Error : Unable to read the file as file is not present");
+                    printf("Error : Memory allocation failed.\n");
                 }
-                else if(iRet == ERR_INVALID_PARAMETER)
-                {
-                    printf("Error : Inavalid Parameters for the functions\n");
-                    printf("Please Check man page for more details\n");
-                } 
-                else if(iRet == ERR_PERMISSION_DENIED)
-                {
-                    printf("Error: It Seems You Dont Have Permission to write");
-                }
-                else if(iRet == ERR_INSUFFICIENT_DATA)
-                {
-                    printf("Error : Insufficient Data For read the File");
-                }
-
                 else
                 {
-                    printf("%d Bytes of Data read File\n",iRet);
-                    printf("The Data from The File :%s\n",EmptyBuffer);
-
+                    memset(EmptyBuffer, 0, readSize + 1);
+                    iRet = read_file(atoi(Command[1]), EmptyBuffer, readSize);
+                    if(iRet == ERR_FILE_NOT_EXISTS)
+                    {
+                        printf("Error : Unable to read. File not found for the given descriptor.\n");
+                    }
+                    else if(iRet == ERR_INVALID_PARAMETER)
+                    {
+                        printf("Error : Invalid parameters.\n");
+                        printf("Please check man page for more details.\n");
+                    } 
+                    else if(iRet == ERR_PERMISSION_DENIED)
+                    {
+                        printf("Error : Permission denied. You don't have read permission.\n");
+                    }
+                    else if(iRet == ERR_INSUFFICIENT_DATA)
+                    {
+                        printf("Error : Insufficient data. Not enough bytes available to read.\n");
+                    }
+                    else
+                    {
+                        printf("%d bytes read from file.\n", iRet);
+                        printf("Data : %s\n", EmptyBuffer);
+                    }
                     free(EmptyBuffer);
+                    EmptyBuffer = NULL;
                 }
-                
             }
+
             else
             {
                 printf("Command Not Found..\n");
                 printf("Please refer Help option or Use man Command\n");
-
             }
 
             
